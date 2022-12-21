@@ -1,0 +1,42 @@
+- hosts: remote
+  gather_facts: no
+  vars:
+    users:
+      - jaime
+      - sansa
+      - robert
+  tasks:
+    - name: create users
+      ansible.builtin.user:
+        name : "{{ item }}"
+        state: present
+      loop: "{{ users }}"
+      become: no
+
+    - name: copy configs
+      ansible.builtin.template:
+        src: git_confs/.gitconfig.j2
+        dest: /home/{{ item }}/.gitconfig
+      loop: "{{ users }}"
+      become: yes
+
+    - name: copy pub keys
+      ansible.builtin.copy:
+        src: git_confs/id_rsa.pub
+        dest: /home/{{ item }}/.ssh/authorized_keys/
+      loop: "{{ users }}"
+      become: yes
+
+    - name: remove users
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: yes
+      tags: rm
+      loop: "{{ users }}"
+#
+#    - name: "loop through list"
+#      debug:
+#        msg: "An item: {{item}}"
+#      with_items: "{{ users }}"
+#      tags: t

@@ -1,0 +1,37 @@
+- hosts: all
+  gather_facts: no
+  tasks:
+    - name: update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+      tags: apt
+
+    - name: install git
+      ansible.builtin.apt:
+        name: git
+        state: present
+      become: yes
+      tags: install
+
+    - name: install python 3.11
+      ansible.builtin.apt:
+        name: python3.11
+        state: present
+      become: yes
+      tags: install
+
+    - name: create temp user
+      ansible.builtin.user:
+        name: temp_user
+        create_home: false
+        shell: /bin/false
+      become: yes
+      tags: [install, user]
+
+    - name: create temp2 user
+      ansible.builtin.user:
+        name: temp2_user
+        create_home: false
+        shell: /bin/false
+      become: yes
+      tags: user
