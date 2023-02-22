@@ -1,0 +1,22 @@
+
+    tasks:
+      - name: Clone repository from GitHub
+        git:
+          repo: https://github.com/yuriy-kormin/territory_sectors.git
+          dest: {{ dst }}
+          version: master
+
+      - name: Set variables for .env file
+        set_fact:
+          domain: "{{ domain }}"
+          email: "{{ email }}"
+
+      - name: Copy environment file to target host
+        template:
+          src: .env.j2
+          dest: {{dst}}/env-compose
+
+      - name: Build Docker Compose project
+        command: docker-compose build --parallel
+        args:
+          chdir: {{ dst }}

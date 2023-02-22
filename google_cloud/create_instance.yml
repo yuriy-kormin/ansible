@@ -1,0 +1,97 @@
+- hosts: localhost
+  gather_facts: no
+  vars_files:
+    - secrets/vars.yml
+
+  tasks:
+    - name: create a disk
+      gcp_compute_disk:
+          name: disk-instance
+          size_gb: {{disk_size}}
+          source_image: projects/ubuntu-os-cloud/global/images/family/{{image_family}}
+          zone: "{{ zone }}"
+          project: "{{ project_id }}"
+          auth_kind: serviceaccount
+          service_account_file: "{{ service_account_file }}"
+          state: present
+      register: disk
+
+    - name: create a network
+      gcp_compute_network:
+        name: network-instance
+        project: "{{ project_id }}"
+        auth_kind: serviceaccount
+        service_account_file: "{{ service_account_file }}"
+        state: present
+      register: network
+
+    - name: create a address
+      gcp_compute_address:
+        name: address-instance
+        region: "{{ region }}"
+        project: "{{ project_id }}"
+        auth_kind: serviceaccount
+        service_account_file: "{{ service_account_file }}"
+        state: present
+      register: address
+
+    - name: Create instance
+      gcp_compute_instance:
+        name: "{{ instance_name }}"
+        project: "{{ project_id }}"
+        zone: "{{ zone }}"
+        auth_kind: serviceaccount
+        network_interfaces:
+          - network: "{{ network }}"
+            access_configs:
+              - name: External NAT
+                nat_ip: "{{ address }}"
+                type: ONE_TO_ONE_NAT
+        machine_type: "{{ machine_type }}"
+        disks:
+          - auto_delete: true
+            boot: true
+            source: "{{ disk }}"
+#            initialize_params:
+#              image: https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/{{ image }}
+#              disk_size_gb: "{{ disk_size }}"
+        metadata:
+          ssh-keys: "{{ ssh_public_key }}"
+        service_account_file: "{{ service_account_file }}"
+        state: present
+        status: RUNNING
+      register: instance
+
+    - name: set fact
+      set_fact:
+        instance_ip: "{{ instance['networkInterfaces'][0]['accessConfigs'][0]['natIP'] }}"
+        user_login: "{{ ssh_public_key.split(' ')[2].split('@')[0] }}"
+
+    - name: Display instance information
+      debug:
+        var:
+          - instance_ip
+          - user_login
+
+#    - name: Wait for SSH for instance
+#      wait_for: delay=5 sleep=5 host={{ instance_ip }} port=22 state=started timeout=100
+
+
+#    - name: Save host data for first zone
+#      add_host:
+#        host: "{{ instance_ip }}"
+#        groups: all
+#        ansible_user: yuriy.kormin
+    #      delegate_to: localhost
+#      become: true
+
+    - name: Add new host to inventory file
+      lineinfile:
+        path: "{{ inventory_file }}"
+        line: "{{ instance_name }} ansible_host={{ instance_ip }} ansible_user={{ user_login }}"
+
+#    - name: debug var
+#      debug:
+#        var: instance_ip
+
+#      hostname={{ instance.address }} groupname=gce_instances_ips

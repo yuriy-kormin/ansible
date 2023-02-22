@@ -1,0 +1,64 @@
+- name: install docker-compose
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+#    - name: remove old docker files
+#      ansible.builtin.apt:
+#        name: ['docker','docker-engine','docker.io','containerd','runc']
+#        state: absent
+#        update_cache: yes
+
+    - name: add apt-https
+      apt:
+        pkg:
+          - apt-transport-https
+          - curl
+          - gnupg
+          - lsb-release
+          - ca-certificates
+        state: latest
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: get lsb_release
+      shell: lsb_release -cs
+      register: lsb_release
+
+#    - name: Display lsb_release var
+#      debug:
+#        var: lsb_release
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{lsb_release.stdout}} stable
+        state: present
+
+    - name: Install Docker engine
+      apt:
+        pkg:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+          - docker-compose
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add connecting user to Docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+      become: true
